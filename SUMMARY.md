@@ -1,3 +1,3 @@
 # Table of contents
 
-* [Doodle Jump](README.md)
+* [Gauri Jump](README.md)

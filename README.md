@@ -1,4 +1,4 @@
-# Doodle Jump
+# Gauri Jump
 
 ## Installation & Setup
 

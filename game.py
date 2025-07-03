@@ -1,5 +1,6 @@
 import pygame
 import sys
+import asyncio
 import random
 import Assets.colours as colours
 from random import choice, randint
@@ -18,6 +19,7 @@ from Sprites.menu_player import MenuPlayer
 from Sprites.monster import Monster
 from Sprites.blackhole import Blackhole
 from Sprites.ufo import UFO
+from Sprites.character_selector import CharacterSelector
 
 import texture
 
@@ -30,59 +32,122 @@ class Game:
     GRAVITY = 0.4 
     JUMP_STRENGTH = -15  
     
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    # Remove class-level pygame calls - these will be initialized in __init__
+    screen = None
     
-    # ----------------------------
-    #  IMAGES
-    # ----------------------------
-    MAIN_MENU_IMAGE = BACKGROUND_IMAGE = pygame.image.load("Assets/Images/Backgrounds/main_menu.png").convert_alpha()
-    OPTIONS_IMAGE = pygame.image.load("Assets/Images/Backgrounds/options.png").convert_alpha()
-    PLAY_GAME_IMAGE = pygame.image.load(f"Assets/Images/Backgrounds/Backgrounds/{texture.file_name}.png")
-    
-
-    # ----------------------------
-    # TOP IMAGES
-    # ----------------------------
-    TOP_SHEET = pygame.image.load(f"Assets/Images/Backgrounds/Tops/{texture.file_name}.png")
-    TOP_IMAGE =  TOP_SHEET.subsurface(pygame.Rect(0, 0, 640, 92))
-    
-
-    # ----------------------------
-    # END GAME IMAGES
-    # ----------------------------
-    END_GAME_SPRITE_SHEET = pygame.image.load("Assets/Images/start-end-tiles.png")
- 
-    GAME_OVER_TEXT_IMAGE = END_GAME_SPRITE_SHEET.subsurface(pygame.Rect(2, 209, 433, 157))
-    GAME_OVER_TEXT_IMAGE_x = CENTER_X - (GAME_OVER_TEXT_IMAGE.get_width() // 2)
-
-
-    END_GAME_BOTTOM_IMAGE = pygame.image.load(f"Assets/Images/Backgrounds/Bottoms/{texture.file_name}.png")
-    END_GAME_BOTTOM_IMAGE_Y = SCREEN_HEIGHT - END_GAME_BOTTOM_IMAGE.get_height()
-
-    YOUR_SCORE_IMAGE = END_GAME_SPRITE_SHEET.subsurface(pygame.Rect(795, 339, 218, 40))
-    YOUR_SCORE_IMAGE_width, YOUR_SCORE_IMAGE_height = YOUR_SCORE_IMAGE.get_size()
-    YOUR_SCORE_IMAGE_x = (SCREEN_WIDTH - YOUR_SCORE_IMAGE_width) // 2
-    YOUR_SCORE_IMAGE_y = (SCREEN_HEIGHT - YOUR_SCORE_IMAGE_height) // 2
-
-    YOUR_HIGH_SCORE_IMAGE = END_GAME_SPRITE_SHEET.subsurface(pygame.Rect(677, 393, 310, 56))
-    YOUR_HIGH_SCORE_IMAGE_width, YOUR_HIGH_SCORE_IMAGE_height = YOUR_HIGH_SCORE_IMAGE.get_size()
-    YOUR_HIGH_SCORE_IMAGE_x = (SCREEN_WIDTH - YOUR_HIGH_SCORE_IMAGE_width) // 2
-    YOUR_HIGH_SCORE_IMAGE_y = (SCREEN_HEIGHT - YOUR_HIGH_SCORE_IMAGE_height) // 2
-    
-    END_GAME_IMAGES = (YOUR_SCORE_IMAGE, YOUR_HIGH_SCORE_IMAGE)
-
-    pygame.display.set_caption("Doodle Jump")
-    clock = pygame.time.Clock()
+    # Image placeholders - will be loaded in __init__
+    MAIN_MENU_IMAGE = None
+    BACKGROUND_IMAGE = None
+    OPTIONS_IMAGE = None
+    PLAY_GAME_IMAGE = None
+    TOP_SHEET = None
+    TOP_IMAGE = None
+    END_GAME_SPRITE_SHEET = None
+    GAME_OVER_TEXT_IMAGE = None
+    GAME_OVER_TEXT_IMAGE_x = None
+    END_GAME_BOTTOM_IMAGE = None
+    END_GAME_BOTTOM_IMAGE_Y = None
+    YOUR_SCORE_IMAGE = None
+    YOUR_SCORE_IMAGE_width = None
+    YOUR_SCORE_IMAGE_height = None
+    YOUR_SCORE_IMAGE_x = None
+    YOUR_SCORE_IMAGE_y = None
+    YOUR_HIGH_SCORE_IMAGE = None
+    YOUR_HIGH_SCORE_IMAGE_width = None
+    YOUR_HIGH_SCORE_IMAGE_height = None
+    YOUR_HIGH_SCORE_IMAGE_x = None
+    YOUR_HIGH_SCORE_IMAGE_y = None
+    END_GAME_IMAGES = None
+    clock = None
 
     def __init__(self):
         #Game States
         self.running = True
-        self.main_menu = True
+        self.character_select = False  # Character selection comes after play button
+        self.main_menu = True         # Start with main menu
         self.options_menu = False
         self.play_game = False
         self.end_game = False
+        
+        # Character selection variables
+        self.selected_character_file = "doodler.png"  # Default character
+        self.selected_character_name = "F*** Ass Bob Gauri"
 
+        # Initialize pygame (this might be called twice, but that's okay)
         pygame.init()
+        
+        # Initialize display and images AFTER pygame is initialized
+        self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
+        Game.screen = self.screen  # Set class variable for compatibility
+        
+        # Load all images after pygame is initialized
+        try:
+            self.MAIN_MENU_IMAGE = pygame.image.load("Assets/Images/Backgrounds/main_menu.png").convert_alpha()
+            self.BACKGROUND_IMAGE = self.MAIN_MENU_IMAGE
+            Game.MAIN_MENU_IMAGE = self.MAIN_MENU_IMAGE
+            Game.BACKGROUND_IMAGE = self.BACKGROUND_IMAGE
+            
+            self.OPTIONS_IMAGE = pygame.image.load("Assets/Images/Backgrounds/options.png").convert_alpha()
+            Game.OPTIONS_IMAGE = self.OPTIONS_IMAGE
+            
+            self.PLAY_GAME_IMAGE = pygame.image.load(f"Assets/Images/Backgrounds/Backgrounds/{texture.file_name}.png")
+            Game.PLAY_GAME_IMAGE = self.PLAY_GAME_IMAGE
+            
+            # TOP IMAGES
+            self.TOP_SHEET = pygame.image.load(f"Assets/Images/Backgrounds/Tops/{texture.file_name}.png")
+            self.TOP_IMAGE = self.TOP_SHEET.subsurface(pygame.Rect(0, 0, 640, 92))
+            Game.TOP_SHEET = self.TOP_SHEET
+            Game.TOP_IMAGE = self.TOP_IMAGE
+            
+            # END GAME IMAGES
+            self.END_GAME_SPRITE_SHEET = pygame.image.load("Assets/Images/start-end-tiles.png")
+            Game.END_GAME_SPRITE_SHEET = self.END_GAME_SPRITE_SHEET
+            
+            self.GAME_OVER_TEXT_IMAGE = self.END_GAME_SPRITE_SHEET.subsurface(pygame.Rect(2, 209, 433, 157))
+            self.GAME_OVER_TEXT_IMAGE_x = self.CENTER_X - (self.GAME_OVER_TEXT_IMAGE.get_width() // 2)
+            Game.GAME_OVER_TEXT_IMAGE = self.GAME_OVER_TEXT_IMAGE
+            Game.GAME_OVER_TEXT_IMAGE_x = self.GAME_OVER_TEXT_IMAGE_x
+            
+            self.END_GAME_BOTTOM_IMAGE = pygame.image.load(f"Assets/Images/Backgrounds/Bottoms/{texture.file_name}.png")
+            self.END_GAME_BOTTOM_IMAGE_Y = self.SCREEN_HEIGHT - self.END_GAME_BOTTOM_IMAGE.get_height()
+            Game.END_GAME_BOTTOM_IMAGE = self.END_GAME_BOTTOM_IMAGE
+            Game.END_GAME_BOTTOM_IMAGE_Y = self.END_GAME_BOTTOM_IMAGE_Y
+            
+            self.YOUR_SCORE_IMAGE = self.END_GAME_SPRITE_SHEET.subsurface(pygame.Rect(795, 339, 218, 40))
+            self.YOUR_SCORE_IMAGE_width, self.YOUR_SCORE_IMAGE_height = self.YOUR_SCORE_IMAGE.get_size()
+            self.YOUR_SCORE_IMAGE_x = (self.SCREEN_WIDTH - self.YOUR_SCORE_IMAGE_width) // 2
+            self.YOUR_SCORE_IMAGE_y = (self.SCREEN_HEIGHT - self.YOUR_SCORE_IMAGE_height) // 2
+            Game.YOUR_SCORE_IMAGE = self.YOUR_SCORE_IMAGE
+            Game.YOUR_SCORE_IMAGE_width = self.YOUR_SCORE_IMAGE_width
+            Game.YOUR_SCORE_IMAGE_height = self.YOUR_SCORE_IMAGE_height
+            Game.YOUR_SCORE_IMAGE_x = self.YOUR_SCORE_IMAGE_x
+            Game.YOUR_SCORE_IMAGE_y = self.YOUR_SCORE_IMAGE_y
+            
+            self.YOUR_HIGH_SCORE_IMAGE = self.END_GAME_SPRITE_SHEET.subsurface(pygame.Rect(677, 393, 310, 56))
+            self.YOUR_HIGH_SCORE_IMAGE_width, self.YOUR_HIGH_SCORE_IMAGE_height = self.YOUR_HIGH_SCORE_IMAGE.get_size()
+            self.YOUR_HIGH_SCORE_IMAGE_x = (self.SCREEN_WIDTH - self.YOUR_HIGH_SCORE_IMAGE_width) // 2
+            self.YOUR_HIGH_SCORE_IMAGE_y = (self.SCREEN_HEIGHT - self.YOUR_HIGH_SCORE_IMAGE_height) // 2
+            Game.YOUR_HIGH_SCORE_IMAGE = self.YOUR_HIGH_SCORE_IMAGE
+            Game.YOUR_HIGH_SCORE_IMAGE_width = self.YOUR_HIGH_SCORE_IMAGE_width
+            Game.YOUR_HIGH_SCORE_IMAGE_height = self.YOUR_HIGH_SCORE_IMAGE_height
+            Game.YOUR_HIGH_SCORE_IMAGE_x = self.YOUR_HIGH_SCORE_IMAGE_x
+            Game.YOUR_HIGH_SCORE_IMAGE_y = self.YOUR_HIGH_SCORE_IMAGE_y
+            
+            self.END_GAME_IMAGES = (self.YOUR_SCORE_IMAGE, self.YOUR_HIGH_SCORE_IMAGE)
+            Game.END_GAME_IMAGES = self.END_GAME_IMAGES
+            
+            print("✅ All images loaded successfully for web")
+            
+        except Exception as e:
+            print(f"❌ Error loading images: {e}")
+            # Create fallback colored surfaces if images fail to load
+            self.MAIN_MENU_IMAGE = pygame.Surface((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
+            self.MAIN_MENU_IMAGE.fill((100, 150, 200))
+            self.BACKGROUND_IMAGE = self.MAIN_MENU_IMAGE
+            
+        pygame.display.set_caption("Gauri Jump")
+        self.clock = pygame.time.Clock()
+        Game.clock = self.clock
 
         #Sprite Groups
         self.platforms = pygame.sprite.Group()
@@ -110,7 +175,17 @@ class Game:
         self.score_font = pygame.font.Font(None, 50)
 
         self.frame = 0
+        
+        # Initialize character selector
+        self.character_selector = CharacterSelector(self)
+        
+        # Initialize title font for main menu
+        try:
+            self.title_font = pygame.font.Font("Assets/Fonts/DoodleJump.ttf", 84)
+        except:
+            self.title_font = pygame.font.Font(None, 84)
     
+        # Initialize main menu objects since we start with main menu now
         self.initialise_main_menu_objects()
 
     """Initialise/Reinitialise Functions"""
@@ -269,6 +344,42 @@ class Game:
         self.monsters.empty()
         self.blackholes.empty()
         self.UFOs.empty()
+    
+    def draw_main_menu_title(self):
+        """Cross out 'Doodle Jump' and put 'Gauri Jump' below"""
+        
+        # Cross out the original "Doodle Jump" text with thick red lines
+        # The original title is roughly at y=100-140, centered around x=320
+        original_title_y = 120
+        line_thickness = 6
+        
+        # Draw multiple thick red lines to cross out "Doodle Jump"
+        for i in range(line_thickness):
+            # Diagonal line from top-left to bottom-right
+            pygame.draw.line(self.screen, colours.RED, 
+                           (180, original_title_y - 25 + i), 
+                           (460, original_title_y + 25 + i), 4)
+            # Diagonal line from top-right to bottom-left  
+            pygame.draw.line(self.screen, colours.RED,
+                           (460, original_title_y - 25 + i),
+                           (180, original_title_y + 25 + i), 4)
+        
+        # Draw "Gauri Jump" below the crossed out text
+        title_text = "Gauri Jump"
+        title_x = self.CENTER_X
+        title_y = 130  # Below the crossed out text
+        
+        # Draw white outline for better visibility
+        outline_positions = [(-2, -2), (-2, 2), (2, -2), (2, 2), (-1, 0), (1, 0), (0, -1), (0, 1)]
+        for offset_x, offset_y in outline_positions:
+            outline_surface = self.title_font.render(title_text, True, colours.WHITE)
+            outline_rect = outline_surface.get_rect(center=(title_x + offset_x, title_y + offset_y))
+            self.screen.blit(outline_surface, outline_rect)
+        
+        # Draw main title text
+        title_surface = self.title_font.render(title_text, True, colours.BLACK)
+        title_rect = title_surface.get_rect(center=(title_x, title_y))
+        self.screen.blit(title_surface, title_rect)
         
 
     """
@@ -277,8 +388,27 @@ class Game:
     def draw_top(self):
         self.screen.blit(self.TOP_IMAGE, (0, 0))
 
-        score_text = self.score_font.render(str(int(self.player.score)), True, colours.BLACK)
-        self.screen.blit(score_text, (30, 18))
+        # Draw score with thick white outline for maximum visibility
+        score_str = str(int(self.player.score))
+        
+        # Position score further from top edge to avoid cutoff
+        score_x, score_y = 50, 50
+        
+        # Draw thick white outline (more positions for thicker outline)
+        outline_positions = [
+            (-3, -3), (-3, 0), (-3, 3),
+            (0, -3), (0, 3),
+            (3, -3), (3, 0), (3, 3),
+            (-2, -2), (-2, 2), (2, -2), (2, 2),
+            (-1, -1), (-1, 1), (1, -1), (1, 1)
+        ]
+        for offset_x, offset_y in outline_positions:
+            outline_text = self.score_font.render(score_str, True, colours.WHITE)
+            self.screen.blit(outline_text, (score_x + offset_x, score_y + offset_y))
+        
+        # Draw main score text
+        score_text = self.score_font.render(score_str, True, colours.BLACK)
+        self.screen.blit(score_text, (score_x, score_y))
 
         self.pause_button.draw(self.screen)
         self.resume_button.draw(self.screen)
@@ -298,6 +428,22 @@ class Game:
         self.screen.blit(self.YOUR_SCORE_IMAGE,      (self.YOUR_SCORE_IMAGE_x,       self.CENTER_Y * 0.7))
         self.screen.blit(self.YOUR_HIGH_SCORE_IMAGE, (self.YOUR_HIGH_SCORE_IMAGE_x, (self.CENTER_Y * 0.95)))
         self.screen.blit(self.GAME_OVER_TEXT_IMAGE, (self.GAME_OVER_TEXT_IMAGE_x, 140))
+
+        # Sweet message from Abhi - positioned between high score number and buttons
+        love_message = "Abhi Still Loves You!"
+        love_y = self.CENTER_Y * 1.18  # Between high score number (1.13) and buttons
+        
+        # Draw white outline for the love message using DoodleJump font
+        outline_positions = [(-2, -2), (-2, 2), (2, -2), (2, 2), (-1, 0), (1, 0), (0, -1), (0, 1)]
+        for offset_x, offset_y in outline_positions:
+            outline_text = self.title_font.render(love_message, True, colours.WHITE)
+            outline_x = self.CENTER_X - (outline_text.get_width() // 2)
+            self.screen.blit(outline_text, (outline_x + offset_x, love_y + offset_y))
+        
+        # Draw main love message text in DoodleJump font
+        love_text = self.title_font.render(love_message, True, colours.RED)
+        love_x = self.CENTER_X - (love_text.get_width() // 2)
+        self.screen.blit(love_text, (love_x, love_y))
 
         self.play_again_button.draw(self.screen)
         self.main_menu_button.draw(self.screen)
@@ -329,7 +475,10 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running = False
             
-            if self.main_menu:
+            if self.character_select:
+                self.character_selector.handle_events(event)
+                
+            elif self.main_menu:
                 self.play_button.handle_events(event)
                 self.options_button.handle_events(event)
                 
@@ -350,7 +499,11 @@ class Game:
     
     def update(self):
 
-        if self.main_menu:
+        if self.character_select:
+            # Character selection doesn't need updates
+            pass
+            
+        elif self.main_menu:
             self.player.update()
             self.platforms.update()
             self.UFOs.update()
@@ -376,7 +529,10 @@ class Game:
             self.main_menu_button.update()
         
     def draw(self):
-        self.screen.blit(self.BACKGROUND_IMAGE, (0, 0))
+        if self.character_select:
+            self.character_selector.draw(self.screen)
+        else:
+            self.screen.blit(self.BACKGROUND_IMAGE, (0, 0))
 
         if self.main_menu:
 
@@ -393,6 +549,10 @@ class Game:
         
             if self.options_menu:
                 self.main_menu_button.draw(self.screen)
+            
+            # Draw "Gauri Jump" title overlay (only when not in options menu)
+            if not self.options_menu:
+                self.draw_main_menu_title()
             
         if self.play_game:
 
@@ -437,6 +597,17 @@ class Game:
             self.clock.tick(60)
         pygame.quit()
         sys.exit()
+    
+    async def run_web(self):
+        """Web-compatible run method for pygbag"""
+        while self.running:
+            self.handle_events()
+            self.update()
+            self.draw()
+            self.frame += 1
+            self.clock.tick(60)
+            await asyncio.sleep(0)  # Essential for web compatibility
+        pygame.quit()
 
 
 

@@ -31,9 +31,9 @@ class PlayButton:
                 self.clicked = False
                 self.hide = True
 
-                #Game State change
+                #Game State change - go to character selection first
                 self.game.main_menu = False
-                self.game.play_game = True
+                self.game.character_select = True
 
                 #Background changed
                 self.game.BACKGROUND_IMAGE = pygame.image.load(f"Assets/Images/Backgrounds/Backgrounds/{texture.file_name}.png")
@@ -41,9 +41,9 @@ class PlayButton:
                 #Remove the main menu UFO    
                 self.game.UFOs.sprites()[0].remove()
             
-                #Game initialisation
-                self.game.initialise_game_weights()
-                self.game.initialise_game_objects()
+                # Don't initialize game objects yet - wait for character selection
+                # self.game.initialise_game_weights()
+                # self.game.initialise_game_objects()
 
                 sounds.button.play()
 

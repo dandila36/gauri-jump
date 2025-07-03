@@ -98,19 +98,7 @@ class UFO(pygame.sprite.Sprite):
             if if they're falling we kill the ufo
             else the player is using a shield then we protect them if they collide head on
             """
-            if self.player.using_shield:
-                
-                self.player.jump(play_sound=False)
-                self.blocked = True
-                self.collision = False
-            
-                if self.player.falling:
-                    self.remove(play_sound=True)
-                else:
-                    self.player.using_shield = False
-                    sounds.block.play()
-            
-            elif not self.blocked:
+            if not self.blocked:
                 self.collision = True
 
                 #If player hits the top kill ufo

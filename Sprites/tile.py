@@ -5,7 +5,6 @@ import Assets.sounds as sounds
 
 from Sprites.Power_ups.propeller import Propeller
 from Sprites.Power_ups.jetpack import Jetpack
-from Sprites.Power_ups.shield import Shield
 from Sprites.Power_ups.spring_shoes import SpringShoes
 from Sprites.Power_ups.spring import Spring
 from Sprites.Power_ups.trampoline import Trampoline
@@ -29,7 +28,7 @@ class Tile(pygame.sprite.Sprite):
     DISAPPEARING_TILE_IMAGE  = SPRITE_SHEET.subsurface(pygame.Rect(1, 55, 57, 15)) 
     SHIFTING_TILE_IMAGE  = SPRITE_SHEET.subsurface(pygame.Rect(1, 184, 57, 15)) 
     
-    POWER_UPS = [Jetpack, Trampoline, Spring, Propeller, Shield, SpringShoes]
+    POWER_UPS = [Jetpack, Trampoline, Spring, Propeller, SpringShoes]
 
     BROKEN_TILE_IMAGE  = SPRITE_SHEET.subsurface(pygame.Rect(1, 73, 60, 15)) 
     BROKEN_TILE_IMAGE_1  = SPRITE_SHEET.subsurface(pygame.Rect(0, 90, 62, 20)) 
@@ -121,7 +120,7 @@ class Tile(pygame.sprite.Sprite):
         """
         This function is inherited by every other unique tile type and it simply generate a random power up based on the given probability weights
         """
-        power_up = random.choices(population =  self.POWER_UPS+[None], weights=[0.1, 2, 7, 0.8, 5, 1, 80])[0]
+        power_up = random.choices(population =  self.POWER_UPS+[None], weights=[0.1, 2, 7, 0.8, 1, 80])[0]
         if power_up:
             self.power_up = power_up(self.game, self.rect.centerx, self.rect.centery, self)
 

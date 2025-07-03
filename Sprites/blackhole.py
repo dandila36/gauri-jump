@@ -61,20 +61,7 @@ class Blackhole(pygame.sprite.Sprite):
             and not self.player.dead):
             
     
-            if self.player.using_shield:
-                """
-                If the player is using a shield we don't kill the player but rather make them jump past the blackhole and remove the shield
-                whilst the user collides with the blackhole and they have a shield the blackhole is 'blocked' until the user no longer collides with it
-                hence the else statement that unblocks the blackhole
-                """
-                self.player.jump(play_sound=False)
-                self.player.using_shield = False
-                self.blocked = True
-                self.collision = False
-                sounds.block.play()
-                
-
-            elif not self.blocked:
+            if not self.blocked:
                 """
                 If the blackhole is not blocked then the player's states are necessarily changed such that the player obj will be sucked into
                 the blackholes location

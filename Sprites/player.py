@@ -1,12 +1,25 @@
+"""
+GAURI JUMP - CUSTOM CHARACTER SETUP
+====================================
+
+To use your custom doodler character:
+1. Save your character image as "doodler.png" in the Assets/ folder
+2. The image will be automatically scaled to 50x60 pixels (adjust in code if needed)
+3. The character will flip left/right and tilt when moving
+4. Collision detection uses a tighter box around the character's body
+
+If doodler.png is not found, the game will fall back to the original texture system.
+"""
+
 import Assets.sounds as sounds
 import pygame
 import texture
+import os
 
 from pygame.locals import *
 from random import choice, randint
 from Sprites.Power_ups.jetpack import Jetpack
 from Sprites.Power_ups.propeller import Propeller
-from Sprites.Power_ups.shield import Shield
 from Sprites.Power_ups.spring_shoes import SpringShoes
 from Sprites.blackhole import Blackhole
 from Sprites.ufo import UFO
@@ -35,23 +48,65 @@ class Player(pygame.sprite.Sprite):
         self.d = 1
 
         #####
-        # Player Images
-        self.left_image = pygame.image.load(f"Assets/Images/Player/{texture.folder_name}/Body/left.png").convert_alpha()
-        self.left_jump_image = pygame.image.load(f"Assets/Images/Player/{texture.folder_name}/Body/left_jump.png").convert_alpha()
+        # Player Images - New Doodler Character
+        # Try to load custom character image, fall back to original system if not found
+        character_file = getattr(game, 'selected_character_file', 'doodler.png')
+        character_path = f"Assets/{character_file}"
+        self.using_custom_doodler = os.path.exists(character_path)
         
-        self.right_image = pygame.image.load(f"Assets/Images/Player/{texture.folder_name}/Body/right.png").convert_alpha()
-        self.right_jump_image = pygame.image.load(f"Assets/Images/Player/{texture.folder_name}/Body/right_jump.png").convert_alpha()
+        if self.using_custom_doodler:
+            try:
+                # Use the selected character file from the game
+                character_file = getattr(game, 'selected_character_file', 'doodler.png')
+                character_path = f"Assets/{character_file}"
+                
+                # Load the selected character image and create scaled versions
+                self.base_doodler_img = pygame.image.load(character_path).convert_alpha()
+                self.doodler_size = (50, 60)  # Adjust size as needed
+                
+                # Create base images (right-facing)
+                self.right_image = pygame.transform.scale(self.base_doodler_img, self.doodler_size)
+                self.right_jump_image = self.right_image  # Same image for jumping
+                self.shoot_image = self.right_image  # Same image for shooting
+                self.shoot_jump_image = self.right_image  # Same image for shoot+jump
+                
+                # Create left-facing images (flipped)
+                self.left_image = pygame.transform.flip(self.right_image, True, False)
+                self.left_jump_image = self.left_image
+                
+                print("✓ Custom doodler character loaded successfully!")
+                
+            except Exception as e:
+                print(f"⚠ Error loading custom doodler: {e}")
+                print("Falling back to original texture system...")
+                self.using_custom_doodler = False
+                
+        if not self.using_custom_doodler:
+            # Fall back to original texture-based system
+            self.left_image = pygame.image.load(f"Assets/Images/Player/{texture.folder_name}/Body/left.png").convert_alpha()
+            self.left_jump_image = pygame.image.load(f"Assets/Images/Player/{texture.folder_name}/Body/left_jump.png").convert_alpha()
+            self.right_image = pygame.image.load(f"Assets/Images/Player/{texture.folder_name}/Body/right.png").convert_alpha()
+            self.right_jump_image = pygame.image.load(f"Assets/Images/Player/{texture.folder_name}/Body/right_jump.png").convert_alpha()
+            self.shoot_image = pygame.image.load(f"Assets/Images/Player/{texture.folder_name}/Body/shoot.png").convert_alpha()
+            self.shoot_jump_image = pygame.image.load(f"Assets/Images/Player/{texture.folder_name}/Body/shoot_jump.png").convert_alpha()
         
-        self.shoot_image = pygame.image.load(f"Assets/Images/Player/{texture.folder_name}/Body/shoot.png").convert_alpha()
-        self.shoot_jump_image = pygame.image.load(f"Assets/Images/Player/{texture.folder_name}/Body/shoot_jump.png").convert_alpha()
-      
-        self.shield = pygame.image.load(f"Assets/Images/Player/shield.png").convert_alpha()
+
+        
+        # Current image state
         self.prior_image = self.image = self.right_image
+        self.current_tilt = 0  # For tilt animation
+        self.is_tilted = False
         #####
         
         self.image_scale = 1
         self.rect = self.image.get_rect()
         self.rect.center = (self.x, game.CENTER_Y)
+        
+        # Adjust collision rect to be tighter around the character's body/feet
+        # Reduce width and height slightly for better collision detection
+        self.collision_rect = pygame.Rect(0, 0, int(self.rect.width * 0.7), int(self.rect.height * 0.8))
+        self.collision_rect.centerx = self.rect.centerx
+        self.collision_rect.bottom = self.rect.bottom - 5  # Align with feet
         
         #####
         # Knocked out Images
@@ -75,7 +130,6 @@ class Player(pygame.sprite.Sprite):
         self.using_spring_shoes = False
         self.using_jetpack = False
         self.using_propeller = False
-        self.using_shield = False
         self.using_trampoline = False
         self.using_spring = False
     
@@ -197,19 +251,45 @@ class Player(pygame.sprite.Sprite):
     def update_directional_image(self): 
         """
         Alter images depending on whether the sprite is jumping, else revert to default
+        Also handle tilt animation reset when not actively moving (for custom doodler)
         """
-        if self.jumping:
-            match self.image:
-                case self.left_image:
+        if self.using_custom_doodler:
+            # Custom doodler behavior with tilt animation
+            keys = pygame.key.get_pressed()
+            is_moving = keys[K_LEFT] or keys[K_RIGHT]
+            
+            # Reset tilt if not moving
+            if not is_moving and self.is_tilted:
+                self.is_tilted = False
+                self.current_tilt = 0
+                if self.left:
+                    self.prior_image = self.image = self.left_image
+                else:
+                    self.prior_image = self.image = self.right_image
+            
+            # Handle jumping state (for custom doodler, jumping doesn't change the image much)
+            if self.jumping:
+                # Keep current image but ensure it's properly oriented
+                if self.left and not self.is_tilted:
                     self.image = self.left_jump_image
-                   
-                case self.right_image:
+                elif not self.left and not self.is_tilted:
                     self.image = self.right_jump_image
-                  
-                case self.shoot_image:
-                    self.image = self.shoot_jump_image
+                # If tilted, keep the tilted image
+            else:
+                # When not jumping, revert to appropriate directional image
+                if not self.is_tilted:
+                    self.image = self.prior_image
         else:
-            self.image = self.prior_image
+            # Original texture-based behavior
+            if self.jumping:
+                if self.image == self.left_image:
+                    self.image = self.left_jump_image
+                elif self.image == self.right_image:
+                    self.image = self.right_jump_image
+                elif self.image == self.shoot_image:
+                    self.image = self.shoot_jump_image
+            else:
+                self.image = self.prior_image
     def update_score(self):
         """
         Everytime the player goes past the midline point the score increases
@@ -220,26 +300,40 @@ class Player(pygame.sprite.Sprite):
     def update_spawning_properties(self):
         """
         For every time the player hits a tile (game.frame == 0 as it is reset) the game spawning rates are changed depending on the score (height)
+        Gradually increases difficulty but keeps it manageable and fair
         """
         if self.game.frame == 0:
-            self.game.enemy_weight = self.score / 100000
+            # Start with enemies appearing every ~30 seconds, then scale up
+            base_enemy_weight = 0.02  # Much higher base rate for ~30 second intervals
+            score_multiplier = self.score / 5000  # Faster scaling
+            self.game.enemy_weight = min(base_enemy_weight + score_multiplier, 1.0)  # Higher cap for more action
             
-            if 2500 < self.score <= 5000:
-                self.game.tile_weights[0] = 250
-
-            if 5000 < self.score <= 1000:
-                self.game.tile_weights[0] = 100
-                self.game.max_enemy_number = 1
-
-            elif 10000 < self.score <= 25000:
-                self.game.tile_weights[0] = 50
+            # Progressive tile difficulty scaling
+            if self.score > 2000:
+                # Start introducing more challenging tiles after score 2000  
+                self.game.tile_weights[0] = max(500, 9999999 - (self.score * 1))  
+            
+            if self.score > 5000:
+                # More special tiles but keep it reasonable
+                self.game.tile_weights = [max(300, 9999999 - (self.score * 2)), 8, 8, 2, 8, 2, 50]
+                
+            if self.score > 12000:
+                # Moderate difficulty increase
+                self.game.tile_weights = [max(150, 9999999 - (self.score * 3)), 10, 10, 3, 10, 3, 35]
+                
+            if self.score > 25000:
+                # Second enemy can appear
                 self.game.max_enemy_number = 2
-
-            elif self.score > 25000:
-                self.game.tile_weights[0] = 25
+                self.game.tile_weights = [max(75, 9999999 - (self.score * 4)), 12, 12, 4, 12, 4, 25]
+            
+            if self.score > 50000:
+                # Higher difficulty but still manageable
+                self.game.tile_weights = [max(50, 9999999 - (self.score * 5)), 15, 15, 5, 15, 5, 15]
+                
+            if self.score > 75000:
+                # Maximum difficulty - 3 enemies possible
                 self.game.max_enemy_number = 3
-            elif self.score > 50000: 
-                self.game.tile_weights = [5, 5, 5, 0.1, 5, 1, 2] 
+                self.game.tile_weights = [max(30, 200), 18, 18, 6, 18, 6, 10] 
             
     def fall_check(self):
         """
@@ -293,7 +387,10 @@ class Player(pygame.sprite.Sprite):
         """
         Based on every single change previously the player rectangle is finally updated
         """
-        self.rect.center = (self.x, self.y)    
+        self.rect.center = (self.x, self.y)
+        # Update collision rect to follow the main rect
+        self.collision_rect.centerx = self.rect.centerx
+        self.collision_rect.bottom = self.rect.bottom - 5    
     def update_other_sprites_based_upon_player_jump_difference(self):
         """
         When the player moves over the halfway point the difference the player would go based upon the  
@@ -364,8 +461,16 @@ class Player(pygame.sprite.Sprite):
 
             self.draw_jetpack(screen)
             self.draw_propeller(screen)
-            self.draw_shield(screen)
             self.draw_spring_shoes(screen)
+            
+            # Optional: Draw collision box for debugging (uncomment to see collision area)
+            # pygame.draw.rect(screen, (255, 0, 0), self.collision_rect, 2)
+    
+    def get_collision_rect(self):
+        """
+        Returns the tighter collision rectangle for more precise collision detection
+        """
+        return self.collision_rect
     
 
     """
@@ -406,25 +511,7 @@ class Player(pygame.sprite.Sprite):
 
             screen.blit(image, (self.rect.centerx - 15,
                                 self.rect.top - 3))
-    def draw_shield(self, screen):
 
-        if self.using_shield:
-            excess_x = 0
-            excess_y = 0
-
-            if texture.file_name == "ooga": 
-                if self.image in (self.right_image, self.right_jump_image):
-                    excess_x = -5
-                if self.image in (self.shoot_image, self.shoot_jump_image):
-                    excess_x = -5
-                excess_y = 2
-            elif self.image in (self.shoot_image, self.shoot_jump_image):
-                excess_y = -5
-                excess_x = -5
-            elif self.image in (self.left_image, self.left_jump_image):
-                excess_x = -10 
-            screen.blit(self.shield, (self.rect.x + excess_x, 
-                                      self.rect.y + excess_y))
     def draw_spring_shoes(self, screen):
         if self.using_spring_shoes:
             if self.image in (self.shoot_image, self.shoot_jump_image):
@@ -450,18 +537,47 @@ class Player(pygame.sprite.Sprite):
     ------------------------------------------
     """  
     def move_left(self):
-        self.prior_image = self.image = self.left_image
+        if self.using_custom_doodler:
+            # Apply tilt animation for left movement with custom doodler
+            base_img = self.left_image
+            tilted_img = pygame.transform.rotate(base_img, 10)  # Tilt 10 degrees right when moving left
+            self.prior_image = self.image = tilted_img
+            self.current_tilt = 10
+            self.is_tilted = True
+        else:
+            # Original behavior for texture-based characters
+            self.prior_image = self.image = self.left_image
+        
         self.x -= self.speed
         self.left = True
         self.right = False
+        
     def move_right(self):
-        self.prior_image = self.image = self.right_image
-
+        if self.using_custom_doodler:
+            # Apply tilt animation for right movement with custom doodler
+            base_img = self.right_image
+            tilted_img = pygame.transform.rotate(base_img, -10)  # Tilt 10 degrees left when moving right
+            self.prior_image = self.image = tilted_img
+            self.current_tilt = -10
+            self.is_tilted = True
+        else:
+            # Original behavior for texture-based characters
+            self.prior_image = self.image = self.right_image
+        
         self.x += self.speed
         self.right = True
         self.left = False
     def shoot(self):
-        self.prior_image = self.image = self.shoot_image
+        if self.using_custom_doodler:
+            # For the custom doodler character, shooting doesn't change the appearance much
+            # Just ensure we keep the current directional image
+            if self.left:
+                self.prior_image = self.image = self.left_image
+            else:
+                self.prior_image = self.image = self.right_image
+        else:
+            # Original behavior for texture-based characters
+            self.prior_image = self.image = self.shoot_image
         
         shoot_sound = choice((sounds.shoot_1, sounds.shoot_2))
         shoot_sound.play()
@@ -504,8 +620,15 @@ class Player(pygame.sprite.Sprite):
         """
         This function updates the default image (right) for the player
         This function is specifically used in the options menu when the user selects different textures
+        Note: For the custom doodler character, this doesn't need to change textures
         """
-        self.image = pygame.image.load(f"Assets/Images/Player/{texture.folder_name}/Body/right.png")
+        if self.using_custom_doodler:
+            # For the custom doodler character, we don't change based on texture
+            # Just ensure we're using the right-facing image
+            self.image = self.right_image
+        else:
+            # For texture-based characters, reload the texture
+            self.image = pygame.image.load(f"Assets/Images/Player/{texture.folder_name}/Body/right.png")
 
 
 class Bullet(pygame.sprite.Sprite):

@@ -127,24 +127,7 @@ class Monster(pygame.sprite.Sprite):
             and not self.player.dead):
             
             
-            if self.player.using_shield:
-                
-                self.player.jump(play_sound=False)
-                self.blocked = True
-                self.collision = False
-                
-                """
-                If the player is falling it must have jumped on top of the monster, thus killing it.
-                else the player hit it directly and we must remove the shield
-                """
-                if self.player.falling:
-                    self.remove()
-                else:
-                    self.player.using_shield = False
-                    sounds.block.play()
-            
-
-            elif not self.blocked:
+            if not self.blocked:
                 """
                 When the player hits the monster with a shield on we must block the collision until the player is no longer touching the monster
                 otherwise the shield would just be removed and the played would die
